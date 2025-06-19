@@ -1,0 +1,58 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+
+tasks:
+  default:
+    desc: list all tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  prefect:server:start:
+    desc: start prefect server
+    cmds:
+      - prefect server start
+
+  docker:run:prefect:
+    desc: running prefect with docker
+    cmds:
+      - docker run --name prefect -d -p 4200:4200 -v ~/.prefect:/root/.prefect prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+
+  docker:start:prefect:
+    desc: start prefect with docker
+    cmds:
+      - docker start prefect
+
+  docker:stop:prefect:
+    desc: stop prefect
+    cmds:
+      - docker stop prefect
+
+  prefect:reset:
+    desc: delete prefect local directory
+    cmds:
+      - rm -rf ~/.prefect
+
+  open:prefect:
+    cmds:
+      - open http://localhost:4200
+
+  python:hello_flow:
+    cmds:
+      - python hello_flow.py
+
+  python:hello_tasks:
+    cmds:
+      - python hello_tasks.py
+
+
+  prefect:deploy:hello_flow:
+    desc: deploy
+    cmds:
+      - |
+        export PREFECT_API_URL=http://localhost:4200/api
+        prefect deploy hello_flow.py:hello_flow -n hello-deployment

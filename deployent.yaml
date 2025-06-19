@@ -1,0 +1,8 @@
+deployments:
+  - name: hello-deployment
+    entrypoint: hello_flow.py:hello_flow
+    work_pool:
+      name: my-pool
+      type: process
+    schedule:
+      interval: 60
