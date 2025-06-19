@@ -1,9 +1,9 @@
 from prefect import flow
-import myflow
+
 
 @flow
 def hello_flow():
-    print("Hello, world!")
+    print("Hello, flow!")
 
 
 if __name__ == '__main__':

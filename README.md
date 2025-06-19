@@ -9,7 +9,7 @@
 uv add prefect
 ```
 
-3. check prefect version
+3. Check Prefect version
 
 ```shell
 prefect version
@@ -17,7 +17,7 @@ prefect version
 
 result should be something like:
 
-```text
+```shell
 Version:             3.4.4
 API version:         0.8.4
 Python version:      3.13.1
@@ -33,11 +33,11 @@ Server:
 
 ```
 
-# hello flow - the simplest prefect
+# Hello Flow - The Simplest Prefect Example
 
-start by creating the python hellow world script [hello_world.py](hello_world.py)
+Start by creating a Python script for a simple "Hello, World!" example. Save this script as `hello_world.py`.
 
-you can start of by writing a hello world main:
+Begin by writing a standard "Hello, World!" function:
 
 ```python
 def hello_world():
@@ -48,7 +48,8 @@ if __name__ == '__main__':
     hello_world()
  ```
 
-the next thing we are doing is transforming the hello world function to a flow by decorating it with the @flow decorator
+Now, let's transform this simple program into a Prefect flow by decorating the function with the `@flow` decorator. Save the updated script as `hello_flow.py`.
+
 
 [hello_flow.py](hello_flow.py)
 
@@ -58,7 +59,7 @@ from prefect import flow
 
 @flow
 def hello_flow():
-    print("Hello, world!")
+    print("Hello, flow!")
 
 
 if __name__ == '__main__':
@@ -66,43 +67,40 @@ if __name__ == '__main__':
 
 ```
 
-### testing hello flow
+### Testing the `hello_flow`
 
-to test hello flow run:
+To test the `hello_flow`, run the following command:
 
 ```shell
-python hello_flow.py
+python -m hello_flow
 ```
 
-and here are the results:
+You should see output similar to this:
 
 ```shell
- python hello_flow.py 
-11:05:23.075 | INFO    | prefect - Starting temporary server on http://127.0.0.1:8892
+python -m hello_flow                   
+19:30:08.010 | INFO    | prefect - Starting temporary server on http://127.0.0.1:8842
 See https://docs.prefect.io/3.0/manage/self-host#self-host-a-prefect-server for more information on running a dedicated Prefect server.
-11:05:24.736 | INFO    | Flow run 'annoying-kagu' - Beginning flow run 'annoying-kagu' for flow 'hello-flow'
-Hello, world!
-11:05:24.744 | INFO    | Flow run 'annoying-kagu' - Finished in state Completed()
-11:05:24.758 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8892
+19:30:09.675 | INFO    | Flow run 'classic-quetzal' - Beginning flow run 'classic-quetzal' for flow 'hello-flow'
+Hello, flow!
+19:30:09.683 | INFO    | Flow run 'classic-quetzal' - Finished in state Completed()
+19:30:09.698 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8842
 ```
 
-Prefect runs your hello world on a temporary server; this is not a "production style" run.
-Prefect detects that no orchestration server is configured or available for your flow, so it automatically starts a
-temporary, local server (on a random port like 8827), runs your flow, and then shuts down the server.
+When you execute the flow, Prefect automatically runs it on a temporary server. This server is used only for this specific run and is considered a development or testing environment, *not* suitable for production use.
 
-• This temporary server is *NOT* the same as your main Prefect server running on port 4200.
-• It is spun up just for this script run, and is destroyed immediately after.
-
+Here are some key points to note:
+- Prefect detects that no orchestration server is configured or available, so it starts a temporary, local server (e.g., on port 8842), executes your flow, and then shuts down the server immediately after the flow finishes.
+- **The temporary server is different from your main Prefect server running on port 4200**. The main server is specifically for persistent orchestration and monitoring.
 
 If you want your flows to be orchestrated by the persistent server (the one on port 4200), you need to use deployments
 and workers.
 
-even though the server has stopped the collected data from the run session persists in prefect home directory at
-`~/.prefect`
+Although the temporary server stops after the script completes, the metadata and logs from the flow run are saved. By default, Prefect stores these in the `.prefect` directory within your home directory at `~/.prefect`.
 
-by default prefect persists its data into sqlite database
+Prefect uses an SQLite database by default to persist its data. 
 
-to view the flow run, we can start the prefect server:
+To view flow runs or set up orchestration for multiple runs, you'll need to start a Prefect server. Details on how to do this are provided in subsequent sections.
 
 # start the server
 
@@ -126,7 +124,11 @@ open http://127.0.0.1:4200/dashboard
 
 ![1_dashboard.png](images/1_dashboard.png)
 
-then watch the flows
+You can see that there is one flow run and zero tasks. This is because no tasks were defined in the flow.
+
+Click on **Runs** to view the flow runs. You should see a single flow run listed.
+
+Next, click on **Flows**, or open the following URL in your browser:
 
 ```shell
 open http://127.0.0.1:4200/flows
@@ -134,13 +136,15 @@ open http://127.0.0.1:4200/flows
 
 ![2_flows.png](images/2_flows.png)
 
-# create a task
+Here, you can observe a single flow listed, with no deployments defined.
 
-next let's create tasks.
-a workflow can have tasks. tasks share the workflow context. and can return information in the same way functions
-return values
+# Creating a Task
 
-here is a simple example:[hello_tasks.py](hello_tasks.py)
+Next, let's create tasks for the workflow.
+In a workflow, tasks are individual units of work that share the workflow context. Similar to functions, tasks can 
+return values that can be used elsewhere in the workflow.
+
+Here is a simple example: [hello_tasks.py](hello_tasks.py)
 
 ```python
 from prefect import flow, task
@@ -168,23 +172,21 @@ if __name__ == '__main__':
 
 ```
 
-run it with
+run it with `python -m hello_tasks`
 
 ```shell
-python hello_tasks.py
-11:42:01.388 | INFO    | prefect - Starting temporary server on http://127.0.0.1:8724
+python -m hello_tasks 
+21:17:26.969 | INFO    | prefect - Starting temporary server on http://127.0.0.1:8874
 See https://docs.prefect.io/3.0/manage/self-host#self-host-a-prefect-server for more information on running a dedicated Prefect server.
-11:42:03.064 | INFO    | Flow run 'hulking-aardwark' - Beginning flow run 'hulking-aardwark' for flow 'hello-tasks'
-11:42:03.096 | INFO    | Task run 'create_hello-a4d' - Finished in state Completed()
-11:42:03.125 | INFO    | Task run 'create_world-e75' - Finished in state Completed()
+21:17:28.628 | INFO    | Flow run 'primitive-nautilus' - Beginning flow run 'primitive-nautilus' for flow 'hello-tasks'
+21:17:28.661 | INFO    | Task run 'create_hello-ff1' - Finished in state Completed()
+21:17:28.687 | INFO    | Task run 'create_world-fda' - Finished in state Completed()
 hello, world!
-11:42:03.138 | INFO    | Flow run 'hulking-aardwark' - Finished in state Completed()
-11:42:03.151 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8724
+21:17:28.699 | INFO    | Flow run 'primitive-nautilus' - Finished in state Completed()
+21:17:28.713 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8874
 ```
 
 check the dashboard:
-
-
 
 # deploying prefect flow to a prefect server
 
@@ -268,7 +270,6 @@ Deployment - Registers your flow with the server and assigns it to a work pool.
 
 ![arch_overview.png](images/arch_overview.png)
 
-
 ## prefect server
 
 prefect server acts as a Central orchestration hub
@@ -329,7 +330,6 @@ prefect deploy hello_flow.py:hello_flow -n hello-deployment -p my-pool --interva
 
 once this is done take a look in the ui
 
-
 # running tasks in parallel
 
 By default, Prefect tasks are called synchronously when invoked like regular functions.
@@ -363,6 +363,7 @@ if __name__ == '__main__':
 ```
 
 The key differences are:
+
 1. Using `.submit()` instead of calling the tasks directly
 2. Using `.result()` to retrieve the values when needed
 
