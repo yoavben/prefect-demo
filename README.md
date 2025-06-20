@@ -48,8 +48,8 @@ if __name__ == '__main__':
     hello_world()
  ```
 
-Now, let's transform this simple program into a Prefect flow by decorating the function with the `@flow` decorator. Save the updated script as `hello_flow.py`.
-
+Now, let's transform this simple program into a Prefect flow by decorating the function with the `@flow` decorator. Save
+the updated script as `hello_flow.py`.
 
 [hello_flow.py](hello_flow.py)
 
@@ -87,20 +87,26 @@ Hello, flow!
 19:30:09.698 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8842
 ```
 
-When you execute the flow, Prefect automatically runs it on a temporary server. This server is used only for this specific run and is considered a development or testing environment, *not* suitable for production use.
+When you execute the flow, Prefect automatically runs it on a temporary server. This server is used only for this
+specific run and is considered a development or testing environment, *not* suitable for production use.
 
 Here are some key points to note:
-- Prefect detects that no orchestration server is configured or available, so it starts a temporary, local server (e.g., on port 8842), executes your flow, and then shuts down the server immediately after the flow finishes.
-- **The temporary server is different from your main Prefect server running on port 4200**. The main server is specifically for persistent orchestration and monitoring.
+
+- Prefect detects that no orchestration server is configured or available, so it starts a temporary, local server (e.g.,
+  on port 8842), executes your flow, and then shuts down the server immediately after the flow finishes.
+- **The temporary server is different from your main Prefect server running on port 4200**. The main server is
+  specifically for persistent orchestration and monitoring.
 
 If you want your flows to be orchestrated by the persistent server (the one on port 4200), you need to use deployments
 and workers.
 
-Although the temporary server stops after the script completes, the metadata and logs from the flow run are saved. By default, Prefect stores these in the `.prefect` directory within your home directory at `~/.prefect`.
+Although the temporary server stops after the script completes, the metadata and logs from the flow run are saved. By
+default, Prefect stores these in the `.prefect` directory within your home directory at `~/.prefect`.
 
-Prefect uses an SQLite database by default to persist its data. 
+Prefect uses an SQLite database by default to persist its data.
 
-To view flow runs or set up orchestration for multiple runs, you'll need to start a Prefect server. Details on how to do this are provided in subsequent sections.
+To view flow runs or set up orchestration for multiple runs, you'll need to start a Prefect server. Details on how to do
+this are provided in subsequent sections.
 
 # start the server
 
@@ -141,7 +147,7 @@ Here, you can observe a single flow listed, with no deployments defined.
 # Creating a Task
 
 Next, let's create tasks for the workflow.
-In a workflow, tasks are individual units of work that share the workflow context. Similar to functions, tasks can 
+In a workflow, tasks are individual units of work that share the workflow context. Similar to functions, tasks can
 return values that can be used elsewhere in the workflow.
 
 Here is a simple example: [hello_tasks.py](hello_tasks.py)
@@ -186,40 +192,51 @@ hello, world!
 21:17:28.713 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8874
 ```
 
-check the dashboard:
+Click on **Dashboard**. You should see two flow runs listed and two Task runs.
 
-# deploying prefect flow to a prefect server
+![3_dashboard.png](images/3_dashboard.png)
 
-## start the prefect server
+# Deploying a Prefect Flow to a Prefect Server
+
+Up until now, we have been testing our flows on a temporary server. But how can we run a flow automatically on a
+schedule?
+
+To achieve this, we need to configure a deployment.
+
+## Starting the Prefect Server
+
+If you do not already have a Prefect server running, start it now:
 
 ```shell
 prefect server start
 ```
 
-## Register (Deploy) Your Flow with the Server
+## Setting the API URL
 
-Set the API URL so Prefect knows to use your server:
+Configure the API URL so Prefect knows to connect to your server:
 
 ```shell
 export PREFECT_API_URL=http://localhost:4200/api
 ```
 
-## Create a deployment for your flow:
+## Registering (Deploying) Your Flow with the Server
 
-hello_flow.py is the name of the file where your flow is located
-hello_flow is the @flow function name
-hello-deployment is the name that you are giving to the deployment
+To deploy your flow, use the following command. Note the details:
+
+`hello_flow.py` is the name of the file where your flow is located
+`hello_flow` is the @flow function name
+`hello-flow-deployment` is the name that you are giving to the deployment
 
 ```shell
-prefect deploy hello_flow.py:hello_flow -n hello-deployment
+prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment
 ```
 
-once doing that you will be presented with a few questions
+Upon running the command, you will be prompted with a few questions:
 
 ```shell
-prefect deploy hello_flow.py:hello_flow -n hello-deployment
-The following deployment(s) could not be found and will not be deployed: hello-deployment
-Could not find any deployment configurations with the given name(s): hello-deployment. Your flow will be deployed with a new deployment configuration.
+prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment
+The following deployment(s) could not be found and will not be deployed: hello-flow-deployment
+Could not find any deployment configurations with the given name(s): hello-flow-deployment. Your flow will be deployed with a new deployment configuration.
 ? Looks like you don't have any work pools this flow can be deployed to. Would you like to create one? [y/n] (y)
 ```
 
@@ -232,14 +249,22 @@ Could not find any deployment configurations with the given name(s): hello-deplo
 7. Would you like to activate this schedule? [y/n] (y): n
 8. Would you like to add another schedule? [y/n] (n): n
 
-what did we do?
+What Did We Do?
 
-* we have creating a new deployment named hello-deployment
-* we created a work pool and gave it a name - meaning we have chosen an infrastructure where the flow will run. in this
-  case a seperated process
-* we configured a schedule for the deployment
+- We created a new deployment named `hello-flow-deployment`.
+- We created a work pool and assigned it a name, specifying the infrastructure where the flow will run. In this case, we
+  chose a separate process.
+- We configured a schedule for the deployment.
 
-To execute flow runs from the deployment, start a worker in a separate terminal that pulls work from the `my-pool` work
+Click on **Deployments**. You should see the newly created deployment
+
+![4_deployments.png](images/4_deployments.png)
+
+Note the status: Not Ready - this means there are no workers attached to the deployment work pool
+
+## Running Flow Runs from the Deployment
+
+To execute flow runs from the deployment, start a worker in a separate terminal to pull work from the `my-pool` work
 pool:
 
 ```shell
@@ -247,85 +272,114 @@ export PREFECT_API_URL=http://localhost:4200/api
 prefect worker start --pool my-pool
 ```
 
-to run the flow on the server:
+You should see output similar to this:
 
 ```shell
-prefect deployment run hello-flow/hello-deployment
-
-Creating flow run for deployment 'hello-flow/hello-deployment'...
-Created flow run 'affable-cicada'.
-└── UUID: 9e428f2b-b061-4704-bfad-1ccfe2c271b9
-└── Parameters: {}
-└── Job Variables: {}
-└── Scheduled start time: 2025-06-14 20:43:48 UTC+03:00 (now)
-└── URL: http://localhost:4200/runs/flow-run/9e428f2b-b061-4704-bfad-1ccfe2c271b9
+Discovered type 'process' for work pool 'my-pool'.
+Worker 'ProcessWorker 99d28b8d-5afe-4392-8101-5726eddd892d' started!
 ```
 
-# Prefect Architecture with Work Pools
+This log confirms that a worker has been successfully started and is now ready to execute flow runs by pulling work from
+the `my-pool` work pool. Any flow runs scheduled for this work pool will be picked up and executed using the `process`
+infrastructure.
 
-Prefect Server - Orchestrates flows, schedules, and deployments.
-Work Pool - Defines the infrastructure for running flows (local, Docker, cloud, etc.).
-Worker - Polls the work pool for flow runs and executes them.
-Deployment - Registers your flow with the server and assigns it to a work pool.
+Click on **Deployments**. You should see the deployment status has changed to Ready
 
-![arch_overview.png](images/arch_overview.png)
+![5_deployment.png](images/5_deployment.png)
+
+## Running the Flow on the Server
+
+To run the flow on the server, use the following command:
+
+```shell
+prefect deployment run hello-flow/hello-flow-deployment         
+```
+
+You should see output similar to this:
+
+```shell
+Creating flow run for deployment 'hello-flow/hello-flow-deployment'...
+Created flow run 'garnet-chamois'.
+└── UUID: 4ea2b380-2b78-45c8-b9b4-726a13c59b5c
+└── Parameters: {}
+└── Job Variables: {}
+└── Scheduled start time: 2025-06-20 06:40:38 UTC+03:00 (now)
+└── URL: http://localhost:4200/runs/flow-run/4ea2b380-2b78-45c8-b9b4-726a13c59b5c
+```
+
+Click on **Runs**. You should see a new entry for the flow run.
+
+![6_runs.png](images/6_runs.png)
+
+# Understanding Prefect Architecture: Work Pools and Related Components
+
+## Key Components of Prefect Architecture
+
+- **Prefect Server**: Orchestrates flows, schedules, and deployments.
+- **Work Pool**: Defines the infrastructure for running flows (e.g., local, Docker, cloud environments).
+- **Worker**: Polls the work pool for flow runs and executes them on the specified infrastructure.
+- **Deployment**: Registers your flow with the Prefect server and assigns it to a work pool for execution.
+
+![Prefect Architecture Overview](images/arch_overview.png)
+
+---
 
 ## prefect server
 
-prefect server acts as a Central orchestration hub
-its Responsibilities are:
-• Manages, schedules, and monitors data workflows (flows) defined by users.
-• Stores metadata about flows, tasks, schedules, and their states.
-• Provides a user interface and API for workflow management.
-• Facilitates monitoring, alerting, and coordination of flow runs.
-• Does not execute flows directly; instead, it orchestrates and delegates execution to external infrastructure
+The Prefect server serves as the central hub for orchestration in your workflows. It is responsible for:
 
-Think of Prefect Server as the “brain” that knows what needs to be run, when, and tracks the status of everything.
+- Managing, scheduling, and monitoring user-defined data workflows (flows).
+- Storing metadata related to flows, tasks, schedules, and their states.
+- Offering a user interface and API for workflow management.
+- Facilitating monitoring, alerting, and flow run coordination.
+- Orchestrating workflows but delegating execution to external infrastructure rather than executing flows directly.
 
-## work pools
+**Think of the Prefect Server as the “brain” of the system**—it knows what tasks need to run, when they need to run, and
+keeps track of everything's status.
 
-work pools role is to bridge between orchestration and execution environments
+---
 
-a work pool is a logical configuration in Prefect that acts as a bridge between the orchestration layer (the server) and
-the infrastructure where your flows actually execute. The work pool itself is just a configuration and queue—it does not
-execute code or run flow
+## Work Pools
 
-For most work pool types (like Process, Docker, Kubernetes, AWS ECS, etc.), you need to run a worker (or agent)
-somewhere in your infrastructure. This worker polls the work pool for new flow runs and then executes them on the
-specified infrastructur
+Work pools serve as a bridge between the Prefect server (orchestration layer) and the infrastructure where flows are
+executed. A work pool is essentially a logical configuration that helps manage where and how flows should be run.
 
-Responsibilities:
+### Key Features of Work Pools:
 
-* Collect and organize scheduled flow runs into queues, based on configuration (tags, deployments, etc.).
-* Define the infrastructure and execution environment for running flows (e.g., Docker, Kubernetes, AWS ECS, local
-  processes).
-* Allow fine-grained control over how and where flows are executed, including infrastructure provisioning and resource
-  limits.
-* Serve as the channel from which agents or workers pick up work to execute flows.
-* Support multiple operational modes (pull, push, managed) to fit different infrastructure needs
+- They organize scheduled flow runs into queues based on configured criteria (e.g., tags, deployments).  
+- They define the infrastructure for executing flows, such as using Docker, Kubernetes, AWS ECS, or local processes.  
+- They provide fine-grained control over execution environments, including resource limits and infrastructure provisioning requirements.  
+- They act as a queue system from which workers or agents poll flow runs for execution.  
+- They support various operational modes (pull, push, managed) to adapt to different architecture setups.
 
-Work pools act as the “dispatchers,” determining which flows are ready to run and making them available for execution by
-agents or workers.
+**Work pools act as “dispatchers” in the system**, queuing and preparing flows for execution by agents or workers.
 
-## How They Work Together
 
-* The Prefect Server schedules and tracks flow runs.
-* Work Pools organize these runs and define how/where they should be executed.
-* Agents/workers poll work pools for available flow runs and execute them on the specified infrastructure.
+### Work Pools and Workers:
 
-Analogy:
+Most work pool types (e.g., Process, Docker, Kubernetes, AWS ECS) require a worker (or agent) running in your infrastructure.  
+The worker performs the following:
 
-* Prefect Server: The central office that plans and tracks all deliveries.
-* Work Pools: The various loading docks, each configured for different types of trucks and destinations.
-* Agents/Workers: The trucks that come to the loading docks (work pools), pick up packages (flow runs), and deliver
-  them (execute the flows).
+1. Polls the work pool for new flow runs.  
+2. Executes the flow runs on the specified infrastructure.
 
-# running the flow on a scheduler
 
-for this you will need to edit the deployment
+---
+
+## How Prefect Components Work Together
+
+1. **Prefect Server**: Manages the scheduling and tracking of flow runs.  
+2. **Work Pools**: Organize these flow runs into queues and define the infrastructure for execution.  
+3. **Agents/Workers**: Poll the work pools for available flow runs and execute them on the defined infrastructure.
+
+---
+
+# Running the Flow on a Schedule
+
+To enable your flow to run on a defined schedule, update the deployment configuration with the following command:
 
 ```shell
-prefect deploy hello_flow.py:hello_flow -n hello-deployment -p my-pool --interval 60
+prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment -p my-pool --interval 60
 ```
 
 once this is done take a look in the ui
