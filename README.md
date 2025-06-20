@@ -235,26 +235,80 @@ Upon running the command, you will be prompted with a few questions:
 
 ```shell
 prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment
-The following deployment(s) could not be found and will not be deployed: hello-flow-deployment
-Could not find any deployment configurations with the given name(s): hello-flow-deployment. Your flow will be deployed with a new deployment configuration.
-? Looks like you don't have any work pools this flow can be deployed to. Would you like to create one? [y/n] (y)
+Unable to read the specified config file. Reason: [Errno 2] No such file or directory: 'prefect.yaml'. Skipping.
+? Looks like you don't have any work pools this flow can be deployed to. Would you like to create one? [y/n] (y): y
+? What infrastructure type would you like to use for your new work pool? [Use arrows to move; enter to select]
+<select process>
+? Work pool name: my-pool
+Your work pool 'my-pool' has been created!
+? Your Prefect workers will need access to this flow's code in order to run it. Would you like your workers to pull your flow code from a remote storage location when running this flow? [y/n] (y): n
+Your Prefect workers will attempt to load your flow from: /Users/yoavbenishai/work/playground/prefect-demo/hello_flow.py. To see more options for managing your flow's code, run:
+...
+? Would you like to configure schedules for this deployment? [y/n] (y): y
+? What type of schedule would you like to use? [Use arrows to move; enter to select]
+<select Interval>
+? Seconds between scheduled runs (3600): 60
+? Would you like to activate this schedule? [y/n] (y): n
+? Would you like to add another schedule? [y/n] (n): n
+...
+? Would you like to save configuration for this deployment for faster deployments in the future? [y/n]: y
+Deployment configuration saved to prefect.yaml! You can now deploy using this deployment configuration with:
+
+        $ prefect deploy -n hello-flow-deployment
+
+You can also make changes to this deployment configuration by making changes to the YAML file.
+
+To execute flow runs from these deployments, start a worker in a separate terminal that pulls work from the None work pool:
+
+        $ prefect worker start --pool None
+
+To schedule a run for this deployment, use the following command:
+
+        $ prefect deployment run 'hello-flow/hello-flow-deployment'
+
 ```
 
-1. Looks like you don't have any work pools this flow can be deployed to. Would you like to create one? [y/n] (y): y
-2. What infrastructure type would you like to use for your new work pool? [Use arrows to move; enter to select] process
-3. Work pool name: my-pool
-4. Would you like to configure schedules for this deployment? [y/n] (y): y
-5. What type of schedule would you like to use? [Use arrows to move; enter to select] Interval
-6. Seconds between scheduled runs (3600): 60
-7. Would you like to activate this schedule? [y/n] (y): n
-8. Would you like to add another schedule? [y/n] (n): n
+|                                         |          |                                       |
+|-----------------------------------------|----------|---------------------------------------|
+| create work pull                        | y        |                                       |
+| infrastructure type                     | process  |                                       |
+| Work pool name                          | my-pool  |                                       |
+| pull your flow code from remote storage | n        |                                       |
+| configure schedule                      | y        |                                       |
+| schedule type                           | Interval |                                       |
+| seconds between schedule runs           | 60       |                                       |
+| activate schedule                       | n        |                                       |
+| add another schedule                    | n        |                                       |
+| save configuration                      | y        | add the configuration to prefect.yaml |
 
 What Did We Do?
 
 - We created a new deployment named `hello-flow-deployment`.
 - We created a work pool and assigned it a name, specifying the infrastructure where the flow will run. In this case, we
   chose a separate process.
-- We configured a schedule for the deployment.
+- your deployment definition was added to prefect.yaml
+
+check your deployment definition in the newly created [prefect.yaml](prefect.yaml)
+
+```yaml
+deployments:
+  - name: hello-flow-deployment
+    version: null
+    tags: [ ]
+    concurrency_limit: null
+    description: null
+    entrypoint: hello_flow.py:hello_flow
+    parameters: { }
+    work_pool:
+      name: my-pool
+      work_queue_name: null
+      job_variables: { }
+    schedules:
+      - interval: 60.0
+        anchor_date: '2025-06-20T06:52:03.773746+00:00'
+        timezone: UTC
+        active: false
+```
 
 Click on **Deployments**. You should see the newly created deployment
 
@@ -346,43 +400,104 @@ executed. A work pool is essentially a logical configuration that helps manage w
 
 ### Key Features of Work Pools:
 
-- They organize scheduled flow runs into queues based on configured criteria (e.g., tags, deployments).  
-- They define the infrastructure for executing flows, such as using Docker, Kubernetes, AWS ECS, or local processes.  
-- They provide fine-grained control over execution environments, including resource limits and infrastructure provisioning requirements.  
-- They act as a queue system from which workers or agents poll flow runs for execution.  
+- They organize scheduled flow runs into queues based on configured criteria (e.g., tags, deployments).
+- They define the infrastructure for executing flows, such as using Docker, Kubernetes, AWS ECS, or local processes.
+- They provide fine-grained control over execution environments, including resource limits and infrastructure
+  provisioning requirements.
+- They act as a queue system from which workers or agents poll flow runs for execution.
 - They support various operational modes (pull, push, managed) to adapt to different architecture setups.
 
 **Work pools act as “dispatchers” in the system**, queuing and preparing flows for execution by agents or workers.
 
-
 ### Work Pools and Workers:
 
-Most work pool types (e.g., Process, Docker, Kubernetes, AWS ECS) require a worker (or agent) running in your infrastructure.  
+Most work pool types (e.g., Process, Docker, Kubernetes, AWS ECS) require a worker (or agent) running in your
+infrastructure.  
 The worker performs the following:
 
-1. Polls the work pool for new flow runs.  
+1. Polls the work pool for new flow runs.
 2. Executes the flow runs on the specified infrastructure.
-
 
 ---
 
 ## How Prefect Components Work Together
 
-1. **Prefect Server**: Manages the scheduling and tracking of flow runs.  
-2. **Work Pools**: Organize these flow runs into queues and define the infrastructure for execution.  
+1. **Prefect Server**: Manages the scheduling and tracking of flow runs.
+2. **Work Pools**: Organize these flow runs into queues and define the infrastructure for execution.
 3. **Agents/Workers**: Poll the work pools for available flow runs and execute them on the defined infrastructure.
 
 ---
 
 # Running the Flow on a Schedule
 
-To enable your flow to run on a defined schedule, update the deployment configuration with the following command:
+To enable your flow to run automatically on a defined schedule, you have several options:
+
+## Option 1: Deploy with Schedule via CLI
+
+You can create a deployment with a schedule directly using the CLI:
 
 ```shell
 prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment -p my-pool --interval 60
 ```
 
-once this is done take a look in the ui
+This command:
+
+- Creates a deployment named `hello-flow-deployment`
+- Assigns it to the work pool `my-pool`
+- Sets it to run every 60 seconds
+- Automatically activates the schedule
+
+## Option 2: Activate Schedule in prefect.yaml (Recommended)
+
+Since we already have a schedule defined in our [prefect.yaml](prefect.yaml) file, we'll use this approach. Simply set
+the `active` property to `true`:
+
+```yaml
+deployments:
+  - name: hello-flow-deployment
+    version: null
+    tags: [ ]
+    concurrency_limit: null
+    description: null
+    entrypoint: hello_flow.py:hello_flow
+    parameters: { }
+    work_pool:
+      name: my-pool
+      work_queue_name: null
+      job_variables: { }
+    schedules:
+      - interval: 60.0
+        anchor_date: '2025-06-20T06:52:03.773746+00:00'
+        timezone: UTC
+        active: true
+
+```
+
+After making this change, redeploy your flow:
+
+```yaml
+prefect deploy -n hello-flow-deployment
+```
+
+the output:
+
+```shell
+prefect deploy -n hello-flow-deployment
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Deployment 'hello-flow/hello-flow-deployment' successfully created with id '38fbef46-1f26-4c53-b4bd-9995dbe0fd71'.                                                                                                              │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+View Deployment in UI: http://localhost:4200/deployments/deployment/38fbef46-1f26-4c53-b4bd-9995dbe0fd71
+
+```
+
+This method is preferred because it keeps all deployment configuration centralized in the file, making it easier to
+version control and manage.
+
+## Verify Schedule Activation
+
+Once configured, you can verify your scheduled deployment is active by Checking the Prefect UI
+at [http://localhost:4200/deployments](http://localhost:4200/deployments)
 
 # running tasks in parallel
 

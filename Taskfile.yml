@@ -37,6 +37,13 @@ tasks:
     cmds:
       - rm -rf ~/.prefect
 
+  prefect:server:database:reset:
+    desc: delete prefect database
+    cmds:
+      #      - rm -rf ~/.prefect
+      - prefect server database reset -y
+
+
   open:prefect:
     cmds:
       - open http://localhost:4200
@@ -50,9 +57,31 @@ tasks:
       - python hello_tasks.py
 
 
+  prefect:deploy:all:
+    desc: deploy all defined deployment from prefect.yaml
+    cmds:
+      - |
+        export PREFECT_API_URL=http://localhost:4200/api
+        prefect deploy --all
+
+
   prefect:deploy:hello_flow:
     desc: deploy
     cmds:
       - |
         export PREFECT_API_URL=http://localhost:4200/api
         prefect deploy hello_flow.py:hello_flow -n hello-deployment
+
+  prefect:workpool:create:my-pool:
+    desc: deploy all defined deployment from prefect.yaml
+    cmds:
+      - |
+        export PREFECT_API_URL=http://localhost:4200/api
+        prefect work-pool create --type process my-pool
+
+  prefect:worker:start:my-pool:
+    desc: start worker for my opool
+    cmds:
+      - |
+        export PREFECT_API_URL=http://localhost:4200/api
+        prefect worker start --pool my-pool 
