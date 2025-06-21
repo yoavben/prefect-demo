@@ -536,6 +536,16 @@ The key differences are:
 1. Using `.submit()` instead of calling the tasks directly
 2. Using `.result()` to retrieve the values when needed
 
-# is it possible to run a task on a dedicated infrastructure
+# Q&A
+
+## is it possible to run a task on a dedicated infrastructure?
+
+In Prefect, tasks cannot be assigned dedicated infrastructure independently. Task execution occurs within the
+infrastructure provisioned for the entire flow run, not per-task. Here’s how infrastructure allocation works:
+
+While tasks share the flow’s infrastructure, you can use task runners to parallelize task execution within that
+environment
+
+Supported runners: `DaskTaskRunner`, `RayTaskRunner`, `ConcurrentTaskRunner`
 
 

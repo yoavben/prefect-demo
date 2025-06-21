@@ -1,4 +1,5 @@
 from prefect import flow, task
+from prefect.futures import PrefectFuture
 
 
 @task
@@ -13,8 +14,8 @@ def create_world() -> str:
 
 @flow
 def parallel_tasks():
-    hello_future = create_hello.submit()
-    world_future = create_world.submit()
+    hello_future: PrefectFuture = create_hello.submit()
+    world_future: PrefectFuture = create_world.submit()
     print(f"{hello_future.result()}, {world_future.result()}!")
 
 
