@@ -1,0 +1,25 @@
+graph TB
+    subgraph "ORCHESTRATION LAYER"
+        SERVER[Prefect Server]
+        QUEUE[Work Queues]
+        STORAGE[Flow Storage<br/>Git/S3/Docker]
+    end
+    
+    subgraph "EXECUTION LAYER"
+        WORKER[Workers]
+        RUNTIME[Flow Runtime<br/>Tasks & Dependencies]
+    end
+    
+    %% Connections
+    SERVER --> QUEUE
+    WORKER -.->|Poll for work| QUEUE
+    WORKER -->|Fetch flow code| STORAGE
+    WORKER --> RUNTIME
+    RUNTIME -.->|Status & Results| SERVER
+    
+    %% Styling
+    style SERVER fill:#4A90E2,color:#fff
+    style QUEUE fill:#4A90E2,color:#fff
+    style STORAGE fill:#4A90E2,color:#fff
+    style WORKER fill:#7ED321,color:#000
+    style RUNTIME fill:#F5A623,color:#000

@@ -128,7 +128,7 @@ open the ui to view the dashboard:
 open http://127.0.0.1:4200/dashboard
 ```
 
-![1_dashboard.png](images/1_dashboard.png)
+![server_1_dashboard.png](images/server_1_dashboard.png)
 
 You can see that there is one flow run and zero tasks. This is because no tasks were defined in the flow.
 
@@ -140,7 +140,7 @@ Next, click on **Flows**, or open the following URL in your browser:
 open http://127.0.0.1:4200/flows
 ```
 
-![2_flows.png](images/2_flows.png)
+![server_2_flows.png](images/server_2_flows.png)
 
 Here, you can observe a single flow listed, with no deployments defined.
 
@@ -192,16 +192,212 @@ hello, world!
 21:17:28.713 | INFO    | prefect - Stopping temporary server on http://127.0.0.1:8874
 ```
 
+at the very least, using tasks instead of simple function can give you:
+
+* Execution traching - understand the time each task takes
+* State monitoring - what is the state of each task
+* Web ui visibility - and all of this is visible in the ui
+
 Click on **Dashboard**. You should see two flow runs listed and two Task runs.
 
-![3_dashboard.png](images/3_dashboard.png)
+![tasks_1_dashboard.png](images/tasks_1_dashboard.png)
+
+click on **Runs** -> Task Runs
+
+![tasks_2_task_runs.png](images/tasks_2_task_runs.png)
+
+# task retries
+
+```python
+
+from prefect import task
+import requests
+
+
+@task(retries=3, retry_delay_seconds=10)
+def unreliable_api_call():
+    # If this fails, Prefect will retry 3 times with 10-second delays
+    response = requests.get("https://flaky-api.com")
+    return response.json()
+
+```
+
+# task caching
+
+```python
+from prefect import task
+from datetime import timedelta
+
+
+@task(cache_expiration=timedelta(hours=10))
+def expensive_computation() -> bytes:
+    # do expensive computation
+    return b"world"
+```
+
+# running tasks in parallel
+
+By default, Prefect tasks are called synchronously when invoked like regular functions.
+If you want to run these tasks in parallel, you'd need to use Prefect's parallel execution features
+
+[parallel_tasks.py](parallel_tasks.py)
+
+```python
+from prefect import flow, task
+
+
+@task
+def create_hello() -> str:
+    return "hello"
+
+
+@task
+def create_world() -> str:
+    return "world"
+
+
+@flow
+def parallel_tasks():
+    hello_future = create_hello.submit()
+    world_future = create_world.submit()
+    print(f"{hello_future.result()}, {world_future.result()}!")
+
+
+if __name__ == '__main__':
+    parallel_tasks()
+```
+
+The key differences are:
+
+1. Using `.submit()` instead of calling the tasks directly
+2. Using `.result()` to retrieve the values when needed
 
 # Deploying a Prefect Flow to a Prefect Server
 
 Up until now, we have been testing our flows on a temporary server. But how can we run a flow automatically on a
 schedule?
 
-To achieve this, we need to configure a deployment.
+To do that first, we need to understand Prefect architecture
+
+
+# Prefect Architecture
+
+```mermaid
+graph TB
+    subgraph "ORCHESTRATION LAYER"
+        SERVER[Prefect Server]
+        QUEUE[Work Queues]
+        STORAGE[Flow Storage<br/>Git/S3/Docker]
+    end
+
+    subgraph "EXECUTION LAYER"
+        WORKER[Workers]
+        RUNTIME[Flow Runtime<br/>Tasks & Dependencies]
+    end
+
+%% Connections
+    SERVER --> QUEUE
+    WORKER -.->|Poll for work| QUEUE
+    WORKER -->|Fetch flow code| STORAGE
+    WORKER --> RUNTIME
+    RUNTIME -.->|Status & Results| SERVER
+%% Styling
+    style SERVER fill: #4A90E2, color: #fff
+    style QUEUE fill: #4A90E2, color: #fff
+    style STORAGE fill: #4A90E2, color: #fff
+    style WORKER fill: #7ED321, color: #000
+    style RUNTIME fill: #F5A623, color: #000
+```
+
+This simplified component diagram shows the two main layers:
+
+## Orchestration Layer (Blue):
+
+Prefect Server handles scheduling and coordination
+Work Queues manage flow run assignments
+Flow Storage contains your flow definitions
+
+## Execution Layer (Green/Orange):
+
+Workers poll for work and manage execution
+Flow Runtime executes tasks with their dependencies
+
+The key interaction is that workers pull work from the orchestration layer, fetch flow code from storage, execute it
+locally, then report results back up to the server. This clean separation allows centralized orchestration with
+distributed execution.
+
+deploying your flow code
+
+## work pools as infrastructure templates
+
+```mermaid
+graph TB
+    subgraph "ORCHESTRATION LAYER"
+        SERVER[Prefect Server/Cloud]
+        POOL[Work Pools<br/>Infrastructure Templates]
+        QUEUE[Work Queues]
+        STORAGE[Flow Storage<br/>Git/S3/Docker]
+    end
+
+    subgraph "EXECUTION LAYER"
+        WORKER[Workers/Agents]
+        RUNTIME[Flow Runtime<br/>Tasks & Dependencies]
+    end
+
+%% Connections
+    SERVER --> POOL
+    POOL --> QUEUE
+    WORKER -.->|Poll for work| QUEUE
+    WORKER -->|Fetch flow code| STORAGE
+    WORKER --> RUNTIME
+    RUNTIME -.->|Status & Results| SERVER
+    POOL -.->|Defines execution config| WORKER
+%% Styling
+    style SERVER fill: #4A90E2, color: #fff
+    style POOL fill: #FF6B35, color: #fff
+    style QUEUE fill: #4A90E2, color: #fff
+    style STORAGE fill: #4A90E2, color: #fff
+    style WORKER fill: #7ED321, color: #000
+    style RUNTIME fill: #F5A623, color: #000
+```
+
+Work Pools (orange) sit in the orchestration layer and serve as the bridge between scheduling and execution. They define
+the "contract" for how flows should be executed
+
+![arch_overview.png](images/arch_overview.png)
+
+* Process work pool: "Run flows as local processes on the worker machine"
+* Docker work pool: "Run flows inside Docker containers with these specs"
+* Kubernetes work pool: "Run flows as K8s jobs with these resource limits"
+
+### The Flow from Orchestration to Execution
+
+1. Server schedules flows and assigns them to specific work pools
+2. Work pools create their own work queues and define execution requirements
+3. Workers poll queues belonging to work pools they're configured for
+4. Work pools tell workers exactly how to set up the execution environment
+5. Workers execute the flow runtime according to the work pool's specifications
+
+## Deployments
+
+Now that we understand work pools as infrastructure templates, let's explain deployments and how they fit into this
+architecture:
+
+Deployments are configuration objects that connect your flow code to the execution infrastructure.
+shipping instructions" that tell Prefect:
+
+* What to run: Which specific flow and version
+* When to run it: Schedules, triggers, or manual execution
+* Where to find it: Location in flow storage (Git repo, S3 bucket, etc.)
+* How to run it: Which work pool to use for execution
+* With what settings: Parameters, environment variables, resource requirements
+
+
+# Deploying a Prefect Flow to a Prefect Server
+
+Now that we understand Prefect architecture we can go back to our original question.
+
+how can we run a flow automatically on a schedule?
 
 ## Starting the Prefect Server
 
@@ -365,68 +561,9 @@ Click on **Runs**. You should see a new entry for the flow run.
 
 ![6_runs.png](images/6_runs.png)
 
-# Understanding Prefect Architecture: Work Pools and Related Components
 
-## Key Components of Prefect Architecture
 
-- **Prefect Server**: Orchestrates flows, schedules, and deployments.
-- **Work Pool**: Defines the infrastructure for running flows (e.g., local, Docker, cloud environments).
-- **Worker**: Polls the work pool for flow runs and executes them on the specified infrastructure.
-- **Deployment**: Registers your flow with the Prefect server and assigns it to a work pool for execution.
 
-![Prefect Architecture Overview](images/arch_overview.png)
-
----
-
-## prefect server
-
-The Prefect server serves as the central hub for orchestration in your workflows. It is responsible for:
-
-- Managing, scheduling, and monitoring user-defined data workflows (flows).
-- Storing metadata related to flows, tasks, schedules, and their states.
-- Offering a user interface and API for workflow management.
-- Facilitating monitoring, alerting, and flow run coordination.
-- Orchestrating workflows but delegating execution to external infrastructure rather than executing flows directly.
-
-**Think of the Prefect Server as the “brain” of the system**—it knows what tasks need to run, when they need to run, and
-keeps track of everything's status.
-
----
-
-## Work Pools
-
-Work pools serve as a bridge between the Prefect server (orchestration layer) and the infrastructure where flows are
-executed. A work pool is essentially a logical configuration that helps manage where and how flows should be run.
-
-### Key Features of Work Pools:
-
-- They organize scheduled flow runs into queues based on configured criteria (e.g., tags, deployments).
-- They define the infrastructure for executing flows, such as using Docker, Kubernetes, AWS ECS, or local processes.
-- They provide fine-grained control over execution environments, including resource limits and infrastructure
-  provisioning requirements.
-- They act as a queue system from which workers or agents poll flow runs for execution.
-- They support various operational modes (pull, push, managed) to adapt to different architecture setups.
-
-**Work pools act as “dispatchers” in the system**, queuing and preparing flows for execution by agents or workers.
-
-### Work Pools and Workers:
-
-Most work pool types (e.g., Process, Docker, Kubernetes, AWS ECS) require a worker (or agent) running in your
-infrastructure.  
-The worker performs the following:
-
-1. Polls the work pool for new flow runs.
-2. Executes the flow runs on the specified infrastructure.
-
----
-
-## How Prefect Components Work Together
-
-1. **Prefect Server**: Manages the scheduling and tracking of flow runs.
-2. **Work Pools**: Organize these flow runs into queues and define the infrastructure for execution.
-3. **Agents/Workers**: Poll the work pools for available flow runs and execute them on the defined infrastructure.
-
----
 
 # Running the Flow on a Schedule
 
@@ -499,43 +636,6 @@ version control and manage.
 Once configured, you can verify your scheduled deployment is active by Checking the Prefect UI
 at [http://localhost:4200/deployments](http://localhost:4200/deployments)
 
-# running tasks in parallel
-
-By default, Prefect tasks are called synchronously when invoked like regular functions.
-If you want to run these tasks in parallel, you'd need to use Prefect's parallel execution features
-
-[parallel_tasks.py](parallel_tasks.py)
-
-```python
-from prefect import flow, task
-
-
-@task
-def create_hello() -> str:
-    return "hello"
-
-
-@task
-def create_world() -> str:
-    return "world"
-
-
-@flow
-def hello_tasks():
-    hello_future = create_hello.submit()
-    world_future = create_world.submit()
-    print(f"{hello_future.result()}, {world_future.result()}!")
-
-
-if __name__ == '__main__':
-    hello_tasks()
-```
-
-The key differences are:
-
-1. Using `.submit()` instead of calling the tasks directly
-2. Using `.result()` to retrieve the values when needed
-
 # Q&A
 
 ## is it possible to run a task on a dedicated infrastructure?
@@ -547,5 +647,3 @@ While tasks share the flow’s infrastructure, you can use task runners to paral
 environment
 
 Supported runners: `DaskTaskRunner`, `RayTaskRunner`, `ConcurrentTaskRunner`
-
-
