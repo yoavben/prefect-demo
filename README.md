@@ -326,8 +326,6 @@ The key interaction is that workers pull work from the orchestration layer, fetc
 locally, then report results back up to the server. This clean separation allows centralized orchestration with
 distributed execution.
 
-deploying your flow code
-
 ## work pools as infrastructure templates
 
 ```mermaid
@@ -380,15 +378,12 @@ the "contract" for how flows should be executed
 
 ## Deployments
 
-Now that we understand work pools as infrastructure templates, let's explain deployments and how they fit into this
-architecture:
-
 Deployments are configuration objects that connect your flow code to the execution infrastructure.
-shipping instructions" that tell Prefect:
+Deployments tell Prefect:
 
 * What to run: Which specific flow and version
 * When to run it: Schedules, triggers, or manual execution
-* Where to find it: Location in flow storage (Git repo, S3 bucket, etc.)
+* Where to find it: Location in flow storage (Git repo, S3 bucket, Local File System, etc.)
 * How to run it: Which work pool to use for execution
 * With what settings: Parameters, environment variables, resource requirements
 
@@ -417,15 +412,15 @@ export PREFECT_API_URL=http://localhost:4200/api
 
 ## Registering (Deploying) Your Flow with the Server
 
-To deploy your flow, use the following command. Note the details:
-
-`hello_flow.py` is the name of the file where your flow is located
-`hello_flow` is the @flow function name
-`hello-flow-deployment` is the name that you are giving to the deployment
+To deploy your flow, use the following command. 
 
 ```shell
 prefect deploy hello_flow.py:hello_flow -n hello-flow-deployment
 ```
+
+`hello_flow.py` is the name of the file where your flow is located
+`hello_flow` is the @flow function name
+`hello-flow-deployment` is the name that you are giving to the deployment
 
 Upon running the command, you will be prompted with a few questions:
 

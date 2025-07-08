@@ -21,12 +21,13 @@ def parallel_tasks():
     start_time = time.time()
     hello_future: PrefectFuture = create_hello.submit()
     world_future: PrefectFuture = create_world.submit()
+    hello_result = hello_future.result()
+    world_result = world_future.result()
     end_time = time.time()
-    print(f"{hello_future.result()}, {world_future.result()}, duration: {end_time - start_time}!")
+    print(f"{hello_result}, {world_result}, duration: {end_time - start_time}!")
     get_run_logger().info(
-        f"flow finished. duration:{end_time-start_time:.2f}s"
+        f"flow finished. duration:{end_time - start_time:.2f}s"
     )
-
 
 
 if __name__ == '__main__':
